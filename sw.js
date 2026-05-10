@@ -1,4 +1,4 @@
-const C = 'mnemosyne-20260510h';
+const C = 'mnemosyne-20260510c';
 const EXCLUDE = /fonts\.googleapis|fonts\.gstatic/;
 
 self.addEventListener('install', e => {
