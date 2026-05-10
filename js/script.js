@@ -34,18 +34,9 @@ function loadState(){
 }
 
 function defState(){
-  const now=Date.now();
-  const d1={id:uid(),name:'Matematica',color:'#5c8ab8',created:now,settings:{...DEF}};
-  const d2={id:uid(),name:'Filosofia',color:'#9c6eb8',created:now,settings:{...DEF}};
   return{
-    decks:[d1,d2],
-    cards:[
-      mkCard(d1.id,'Cos\'è il determinante di una matrice 2×2?','det(A) = ad − bc, dove $A=\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}$','algebra lineare'),
-      mkCard(d1.id,'Definisci autovalore','$\\lambda$ è autovalore di $A$ se $Av=\\lambda v$ per qualche $v\\neq 0$','algebra lineare'),
-      mkCard(d1.id,'Teorema rango-nullità','$\\text{rank}(A)+\\text{null}(A)=n$ (colonne di A)','algebra lineare'),
-      mkCard(d2.id,"Cos'è l'imperativo categorico di Kant?",'Agisci solo secondo quella massima che puoi volere sia legge universale.','etica'),
-      mkCard(d2.id,'Paradosso della Nave di Teseo','Se tutti i componenti vengono sostituiti uno a uno, l\'oggetto rimane lo stesso?','metafisica'),
-    ],
+    decks:[],
+    cards:[],
     reviews:[],streak:0,lastStudyDate:'',todayCounts:{},studyLog:[],
   };
 }
