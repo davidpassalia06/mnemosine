@@ -90,7 +90,7 @@ function sm2(card,rating){
     }
 
   }else if(status==='relearning'){
-    if(rating==='again'){stepIdx=0;lapses++;ns='relearning';due=Date.now()+rs[0]*MIN;}
+    if(rating==='again'){stepIdx=0;ns='relearning';due=Date.now()+rs[0]*MIN;}  // no lapses++ qui, già contato quando è uscita da review
     else if(rating==='good'||rating==='easy'){
       stepIdx=Math.min(stepIdx+1,rs.length);
       if(stepIdx>=rs.length){interval=Math.min(Math.max(1,Math.round(interval*0.5)),c.maxInterval);repetitions++;ns=interval>=21?'mature':'review';due=Date.now()+interval*DAY;}
@@ -115,7 +115,8 @@ function sm2(card,rating){
       // EaseFactor secondo Anki: hard -0.15, good invariato, easy +0.15
       if(rating==='hard'){easeFactor=Math.max(1.3,Math.round((easeFactor-0.15)*1000)/1000);}
       else if(rating==='easy'){easeFactor=Math.min(Math.round((easeFactor+0.15)*1000)/1000,4.0);}
-      interval=Math.min(Math.max(interval,1),c.maxInterval);
+      // Minimo 4 giorni per review (Anki default), massimo maxInterval
+      interval=Math.min(Math.max(interval,4),c.maxInterval);
       repetitions++;stepIdx=0;ns=interval>=21?'mature':'review';due=Date.now()+interval*DAY;
     }
   }
@@ -145,15 +146,15 @@ function nextIv(card,rating){
     const ni=stepIdx+1;return ni>=rs.length?Math.max(1,Math.round(interval*0.5))+' gg':fmt(rs[ni]);
   }
   if(rating==='again')return fmt(rs[0]);
-  if(rating==='hard')return Math.min(Math.round(interval*1.2),c.maxInterval)+' gg';
-  if(rating==='good')return Math.min(Math.round(interval*easeFactor),c.maxInterval)+' gg';
-  return Math.min(Math.round(interval*easeFactor*1.3),c.maxInterval)+' gg';
+  if(rating==='hard')return Math.min(Math.max(Math.round(interval*1.2),4),c.maxInterval)+' gg';
+  if(rating==='good')return Math.min(Math.max(Math.round(interval*easeFactor),4),c.maxInterval)+' gg';
+  return Math.min(Math.max(Math.round(interval*easeFactor*1.3),4),c.maxInterval)+' gg';
 }
 
 // ═══════════════ COMPUTED ═══════════════
 function deckCounts(did){
   const now=Date.now(),tc=getTc(did),c=cfg(did);
-  const rev=Math.min(S.cards.filter(x=>x.deckId===did&&!x.suspended&&x.status!=='new'&&x.dueDate<=now).length,Math.max(0,c.revLimit-tc.revDone));
+  const rev=Math.min(S.cards.filter(x=>x.deckId===did&&!x.suspended&&(x.status==='review'||x.status==='mature')&&x.dueDate<=now).length,Math.max(0,c.revLimit-tc.revDone));
   const newC=Math.min(S.cards.filter(x=>x.deckId===did&&!x.suspended&&x.status==='new').length,Math.max(0,c.newLimit-tc.newDone));
   const learn=S.cards.filter(x=>x.deckId===did&&!x.suspended&&(x.status==='learning'||x.status==='relearning')&&x.dueDate<=now).length;
   return{rev,newC,learn};
@@ -258,12 +259,15 @@ function startStudy(did){
   let revCards=[],newCards=[];
   decks.forEach(id=>{
     const c=cfg(id),tc=getTc(id);
-    // rispetta il limite di ogni mazzo separatamente
     const rr=Math.max(0,c.revLimit-tc.revDone),nr=Math.max(0,c.newLimit-tc.newDone);
-    revCards.push(...S.cards.filter(x=>x.deckId===id&&!x.suspended&&x.status!=='new'&&x.dueDate<=now).slice(0,rr));
+    // Solo review/mature nel budget rev; learning scadute vanno direttamente in againQ
+    revCards.push(...S.cards.filter(x=>x.deckId===id&&!x.suspended&&(x.status==='review'||x.status==='mature')&&x.dueDate<=now).slice(0,rr));
     const rawN=S.cards.filter(x=>x.deckId===id&&!x.suspended&&x.status==='new');
     const ordN=c.newOrder==='random'?shuffle([...rawN]):rawN.sort((a,b)=>a.created-b.created);
     newCards.push(...ordN.slice(0,nr));
+    // Carte learning/relearning scadute: caricale subito in againQ
+    const lrnDue=S.cards.filter(x=>x.deckId===id&&!x.suspended&&(x.status==='learning'||x.status==='relearning')&&x.dueDate<=now);
+    againQ.push(...lrnDue.map(c=>({card:c,phase:'learn'})));
   });
   studyQ=[...revCards.map(c=>({card:c,phase:'rev'})),...newCards.map(c=>({card:c,phase:'new'}))];
   renderStudyCard();
@@ -326,7 +330,7 @@ function renderStudyCard(){
   const countsHtml=`<div class="sess-counts">
     ${revLeft>0?`<span class="sc rev"><i class="bi bi-arrow-repeat"></i> ${revLeft} ripasso</span>`:''}
     ${newLeft>0?`<span class="sc newc"><i class="bi bi-stars"></i> ${newLeft} nuove</span>`:''}
-    ${againQ.length>0?`<span class="sc lrn"><i class="bi bi-arrow-clockwise"></i> ${againQ.length} cart${againQ.length===1?'a':'e'} da ripetere</span>`:''}
+    ${againQ.length>0?`<span class="sc lrn"><i class="bi bi-arrow-clockwise"></i> ${againQ.length} carta${againQ.length===1?'':'e'} da ripetere</span>`:''}
     ${sess.again>0?`<span class="sc err"><i class="bi bi-x"></i> ${sess.again} errori</span>`:''}
   </div>`;
 
@@ -399,8 +403,9 @@ function rate(rating){
 
   if(rating!=='again'){
     const originalPhase=item.phase;
-    if(originalPhase==='new'&&upd.status==='new')incTc(card.deckId,'new');
-    else if(originalPhase==='rev'||(originalPhase==='new'&&upd.status!=='new'))incTc(card.deckId,'rev');
+    if(originalPhase==='new')incTc(card.deckId,'new');
+    else if(originalPhase==='rev')incTc(card.deckId,'rev');
+    // phase='learn': non consuma né newDone né revDone (già contata alla prima valutazione)
   }
   sess[rating]++;sess.reviewed++;
   S.reviews.push({date:Date.now(),deckId:card.deckId,rating});
@@ -610,7 +615,7 @@ function renderBrowse(){
     if(typeof va==='string')va=va.toLowerCase(),vb=String(vb).toLowerCase();
     return va<vb?-dir:va>vb?dir:0;
   });
-  document.getElementById('browse-count').textContent=`${cards.length} cart${cards.length===1?'a':'e'}`;
+  document.getElementById('browse-count').textContent=`${cards.length} carta${cards.length===1?'':'e'}`;
   const body=document.getElementById('browse-body');
   if(!cards.length){body.innerHTML=`<div class="empty"><div class="empty-ico"><i class="bi bi-search"></i></div><h3>Nessuna carta trovata</h3><p>${search?'Prova un termine diverso.':'Aggiungi la tua prima carta.'}</p><button class="btn btn-p" onclick="nav('add')"><i class="bi bi-plus-lg"></i> Aggiungi carta</button></div>`;return;}
   const sm={new:'Nuova',learning:'In studio',relearning:'Reapprend.',review:'Ripasso',mature:'Matura',suspended:'Sospesa'};
