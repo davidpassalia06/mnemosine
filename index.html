@@ -43,6 +43,7 @@
     <div class="nav-item" onclick="nav('browse')"><i class="bi bi-table nav-ico"></i>Sfoglia carte</div>
     <div class="nav-item" onclick="nav('import')"><i class="bi bi-upload nav-ico"></i>Importa CSV</div>
     <div class="nav-item" onclick="nav('stats')"><i class="bi bi-bar-chart-fill nav-ico"></i>Statistiche</div>
+    <div class="nav-item" onclick="nav('settings')"><i class="bi bi-gear-fill nav-ico"></i>Impostazioni</div>
   </div>
   <div class="sb-footer">
     <div class="backup-row">
@@ -173,6 +174,42 @@
       </div>
     </div>
 
+    <!-- IMPOSTAZIONI GENERALI -->
+    <div class="view" id="view-settings">
+      <div style="max-width:580px">
+        <div class="hero"><h1>Impostazioni</h1><p style="color:var(--tx2)">Personalizza l'app e configura il backup su cloud.</p></div>
+
+        <!-- TEMA -->
+        <div class="set-sec">
+          <div class="set-sec-title">Aspetto</div>
+          <div class="set-row">
+            <div><div class="set-label">Colore principale</div><div class="set-desc">Usato per accenti, pulsanti e barre di progresso</div></div>
+          </div>
+          <div class="theme-swatches" id="theme-swatches"></div>
+        </div>
+
+        <!-- FIREBASE -->
+        <div class="set-sec" style="margin-top:24px">
+          <div class="set-sec-title">Backup Firebase <span style="font-size:10px;background:var(--bg3);padding:1px 6px;border-radius:4px;margin-left:4px;color:var(--tx3);text-transform:none;letter-spacing:0;font-weight:400">opzionale</span></div>
+          <p style="font-size:12px;color:var(--tx3);margin-bottom:12px;line-height:1.6">Collega il tuo progetto Firebase per sincronizzare i dati tra dispositivi. Le credenziali vengono salvate solo localmente su questo dispositivo.</p>
+          <div id="fb-status-bar" style="display:none"></div>
+          <div class="fg"><label class="fl">API Key</label><input class="fi" id="fb-apikey" type="text" placeholder="AIza…" autocomplete="off" spellcheck="false"></div>
+          <div class="fg"><label class="fl">Auth Domain</label><input class="fi" id="fb-authdomain" type="text" placeholder="progetto.firebaseapp.com" autocomplete="off" spellcheck="false"></div>
+          <div class="fg"><label class="fl">Database URL <span class="opt">(Realtime DB)</span></label><input class="fi" id="fb-dburl" type="text" placeholder="https://progetto-default-rtdb.firebaseio.com" autocomplete="off" spellcheck="false"></div>
+          <div class="fg"><label class="fl">Project ID</label><input class="fi" id="fb-projectid" type="text" placeholder="progetto-12345" autocomplete="off" spellcheck="false"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="btn btn-p" onclick="fbConnect()"><i class="bi bi-cloud-check"></i> Connetti</button>
+            <button class="btn btn-g" id="fb-disconnect-btn" onclick="fbDisconnect()" style="display:none"><i class="bi bi-x-circle"></i> Disconnetti</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="fb-actions" style="display:none">
+            <button class="btn btn-s" id="fb-upload-btn" onclick="fbUpload()" disabled><i class="bi bi-cloud-upload"></i> Carica backup</button>
+            <button class="btn btn-g" id="fb-download-btn" onclick="fbDownload()" disabled><i class="bi bi-cloud-download"></i> Scarica backup</button>
+          </div>
+          <p style="font-size:11px;color:var(--tx4);margin-top:10px;line-height:1.5">Il backup viene salvato sotto <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">mnemosyne/backup</code> nel Realtime Database. Nessun account richiesto: l'accesso è anonimo.</p>
+        </div>
+      </div>
+    </div>
+
   </div>
 </main>
 </div>
@@ -231,6 +268,9 @@
   <button onclick="swUpdate()" style="background:#d4c9a8;color:#1a1916;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">Aggiorna ora</button>
 </div>
 
+<!-- Firebase SDK (caricato solo se configurato) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="js/script.js"></script>
 <script>
 // ─── Service Worker ───────────────────────────────────────────────────────────
