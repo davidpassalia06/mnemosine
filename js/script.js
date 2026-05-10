@@ -326,7 +326,7 @@ function renderStudyCard(){
   const countsHtml=`<div class="sess-counts">
     ${revLeft>0?`<span class="sc rev"><i class="bi bi-arrow-repeat"></i> ${revLeft} ripasso</span>`:''}
     ${newLeft>0?`<span class="sc newc"><i class="bi bi-stars"></i> ${newLeft} nuove</span>`:''}
-    ${againQ.length>0?`<span class="sc lrn"><i class="bi bi-arrow-clockwise"></i> ${againQ.length} carta${againQ.length===1?'':'e'} da ripetere</span>`:''}
+    ${againQ.length>0?`<span class="sc lrn"><i class="bi bi-arrow-clockwise"></i> ${againQ.length} cart${againQ.length===1?'a':'e'} da ripetere</span>`:''}
     ${sess.again>0?`<span class="sc err"><i class="bi bi-x"></i> ${sess.again} errori</span>`:''}
   </div>`;
 
@@ -610,7 +610,7 @@ function renderBrowse(){
     if(typeof va==='string')va=va.toLowerCase(),vb=String(vb).toLowerCase();
     return va<vb?-dir:va>vb?dir:0;
   });
-  document.getElementById('browse-count').textContent=`${cards.length} carta${cards.length===1?'':'e'}`;
+  document.getElementById('browse-count').textContent=`${cards.length} cart${cards.length===1?'a':'e'}`;
   const body=document.getElementById('browse-body');
   if(!cards.length){body.innerHTML=`<div class="empty"><div class="empty-ico"><i class="bi bi-search"></i></div><h3>Nessuna carta trovata</h3><p>${search?'Prova un termine diverso.':'Aggiungi la tua prima carta.'}</p><button class="btn btn-p" onclick="nav('add')"><i class="bi bi-plus-lg"></i> Aggiungi carta</button></div>`;return;}
   const sm={new:'Nuova',learning:'In studio',relearning:'Reapprend.',review:'Ripasso',mature:'Matura',suspended:'Sospesa'};
