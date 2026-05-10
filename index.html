@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1916">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>Mnemosyne</title>
 <script>window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']]},options:{skipHtmlTags:['script','noscript','style','textarea']}};</script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
@@ -222,6 +225,49 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Banner aggiornamento SW -->
+<div id="sw-update-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#3d6b3d;color:#d4c9a8;font-family:'DM Sans',sans-serif;font-size:13px;padding:12px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;z-index:9999;box-shadow:0 -2px 12px rgba(0,0,0,.4)">
+  <span>🔄 Nuova versione disponibile</span>
+  <button onclick="swUpdate()" style="background:#d4c9a8;color:#1a1916;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">Aggiorna ora</button>
+</div>
+
 <script src="js/script.js"></script>
+<script>
+// ─── Service Worker ───────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  let newWorker = null;
+
+  navigator.serviceWorker.register('./sw.js', { scope: './' })
+    .then(reg => {
+      // Controlla subito se c'è un worker in attesa (aggiornamento già scaricato)
+      if (reg.waiting) showUpdateBar(reg.waiting);
+
+      reg.addEventListener('updatefound', () => {
+        const installing = reg.installing;
+        installing.addEventListener('statechange', () => {
+          if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBar(installing);
+          }
+        });
+      });
+    })
+    .catch(err => console.warn('SW registration failed:', err));
+
+  // Ricarica la pagina quando il nuovo SW prende il controllo
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
+}
+
+function showUpdateBar(worker) {
+  newWorker = worker;
+  const bar = document.getElementById('sw-update-bar');
+  if (bar) bar.style.display = 'flex';
+}
+
+function swUpdate() {
+  if (newWorker) newWorker.postMessage('skipWaiting');
+}
+</script>
 </body>
 </html>
