@@ -90,7 +90,7 @@ function sm2(card,rating){
     }
 
   }else if(status==='relearning'){
-    if(rating==='again'){stepIdx=0;lapses++;ns='relearning';due=Date.now()+rs[0]*MIN;}
+    if(rating==='again'){stepIdx=0;ns='relearning';due=Date.now()+rs[0]*MIN;}  // no lapses++ qui, già contato quando è uscita da review
     else if(rating==='good'||rating==='easy'){
       stepIdx=Math.min(stepIdx+1,rs.length);
       if(stepIdx>=rs.length){interval=Math.min(Math.max(1,Math.round(interval*0.5)),c.maxInterval);repetitions++;ns=interval>=21?'mature':'review';due=Date.now()+interval*DAY;}
@@ -115,7 +115,8 @@ function sm2(card,rating){
       // EaseFactor secondo Anki: hard -0.15, good invariato, easy +0.15
       if(rating==='hard'){easeFactor=Math.max(1.3,Math.round((easeFactor-0.15)*1000)/1000);}
       else if(rating==='easy'){easeFactor=Math.min(Math.round((easeFactor+0.15)*1000)/1000,4.0);}
-      interval=Math.min(Math.max(interval,1),c.maxInterval);
+      // Minimo 4 giorni per review (Anki default), massimo maxInterval
+      interval=Math.min(Math.max(interval,4),c.maxInterval);
       repetitions++;stepIdx=0;ns=interval>=21?'mature':'review';due=Date.now()+interval*DAY;
     }
   }
@@ -145,15 +146,15 @@ function nextIv(card,rating){
     const ni=stepIdx+1;return ni>=rs.length?Math.max(1,Math.round(interval*0.5))+' gg':fmt(rs[ni]);
   }
   if(rating==='again')return fmt(rs[0]);
-  if(rating==='hard')return Math.min(Math.round(interval*1.2),c.maxInterval)+' gg';
-  if(rating==='good')return Math.min(Math.round(interval*easeFactor),c.maxInterval)+' gg';
-  return Math.min(Math.round(interval*easeFactor*1.3),c.maxInterval)+' gg';
+  if(rating==='hard')return Math.min(Math.max(Math.round(interval*1.2),4),c.maxInterval)+' gg';
+  if(rating==='good')return Math.min(Math.max(Math.round(interval*easeFactor),4),c.maxInterval)+' gg';
+  return Math.min(Math.max(Math.round(interval*easeFactor*1.3),4),c.maxInterval)+' gg';
 }
 
 // ═══════════════ COMPUTED ═══════════════
 function deckCounts(did){
   const now=Date.now(),tc=getTc(did),c=cfg(did);
-  const rev=Math.min(S.cards.filter(x=>x.deckId===did&&!x.suspended&&x.status!=='new'&&x.dueDate<=now).length,Math.max(0,c.revLimit-tc.revDone));
+  const rev=Math.min(S.cards.filter(x=>x.deckId===did&&!x.suspended&&(x.status==='review'||x.status==='mature')&&x.dueDate<=now).length,Math.max(0,c.revLimit-tc.revDone));
   const newC=Math.min(S.cards.filter(x=>x.deckId===did&&!x.suspended&&x.status==='new').length,Math.max(0,c.newLimit-tc.newDone));
   const learn=S.cards.filter(x=>x.deckId===did&&!x.suspended&&(x.status==='learning'||x.status==='relearning')&&x.dueDate<=now).length;
   return{rev,newC,learn};
@@ -258,12 +259,15 @@ function startStudy(did){
   let revCards=[],newCards=[];
   decks.forEach(id=>{
     const c=cfg(id),tc=getTc(id);
-    // rispetta il limite di ogni mazzo separatamente
     const rr=Math.max(0,c.revLimit-tc.revDone),nr=Math.max(0,c.newLimit-tc.newDone);
-    revCards.push(...S.cards.filter(x=>x.deckId===id&&!x.suspended&&x.status!=='new'&&x.dueDate<=now).slice(0,rr));
+    // Solo review/mature nel budget rev; learning scadute vanno direttamente in againQ
+    revCards.push(...S.cards.filter(x=>x.deckId===id&&!x.suspended&&(x.status==='review'||x.status==='mature')&&x.dueDate<=now).slice(0,rr));
     const rawN=S.cards.filter(x=>x.deckId===id&&!x.suspended&&x.status==='new');
     const ordN=c.newOrder==='random'?shuffle([...rawN]):rawN.sort((a,b)=>a.created-b.created);
     newCards.push(...ordN.slice(0,nr));
+    // Carte learning/relearning scadute: caricale subito in againQ
+    const lrnDue=S.cards.filter(x=>x.deckId===id&&!x.suspended&&(x.status==='learning'||x.status==='relearning')&&x.dueDate<=now);
+    againQ.push(...lrnDue.map(c=>({card:c,phase:'learn'})));
   });
   studyQ=[...revCards.map(c=>({card:c,phase:'rev'})),...newCards.map(c=>({card:c,phase:'new'}))];
   renderStudyCard();
@@ -399,8 +403,9 @@ function rate(rating){
 
   if(rating!=='again'){
     const originalPhase=item.phase;
-    if(originalPhase==='new'&&upd.status==='new')incTc(card.deckId,'new');
-    else if(originalPhase==='rev'||(originalPhase==='new'&&upd.status!=='new'))incTc(card.deckId,'rev');
+    if(originalPhase==='new')incTc(card.deckId,'new');
+    else if(originalPhase==='rev')incTc(card.deckId,'rev');
+    // phase='learn': non consuma né newDone né revDone (già contata alla prima valutazione)
   }
   sess[rating]++;sess.reviewed++;
   S.reviews.push({date:Date.now(),deckId:card.deckId,rating});
@@ -774,7 +779,7 @@ function dl(blob,name){const url=URL.createObjectURL(blob);const a=document.crea
 // Inline nuovo mazzo
 function buildInlineSwatches(){const el=document.getElementById('inline-swatches');if(!el)return;el.innerHTML=COLORS.map(c=>`<div class="cswatch${c===inlineColor?' active':''}" style="background:${c}" onclick="pickInline(this,'${c}')"></div>`).join('');}
 function pickInline(el,c){inlineColor=c;document.querySelectorAll('#inline-swatches .cswatch').forEach(s=>s.classList.remove('active'));el.classList.add('active');}
-function openInlineNewDeck(){document.getElementById('inline-new').style.display='';document.getElementById('import-new-btn').style.display='none';buildInlineSwatches();}
+function openInlineNewDeck(){document.getElementById('inline-new').style.display='block';document.getElementById('import-new-btn').style.display='none';buildInlineSwatches();}
 function cancelInlineDeck(){document.getElementById('inline-new').style.display='none';document.getElementById('import-new-btn').style.display='';}
 function createInlineDeck(){
   const name=document.getElementById('inline-name').value.trim();
