@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Mnemosyne</title>
+<script>window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']]},options:{skipHtmlTags:['script','noscript','style','textarea']}};</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="css/master.css">
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-logo">
+    <div class="logo">Mnemos<em>yne</em></div>
+    <button class="sb-close" onclick="closeMob()">✕</button>
+  </div>
+  <div class="sb-body">
+    <div class="nav-item active" onclick="nav('dashboard')">
+      <i class="bi bi-grid-fill nav-ico"></i>Panoramica
+      <span id="badge-tot" class="nav-badge" style="display:none"></span>
+    </div>
+    <div class="nav-item" onclick="nav('studyall')"><i class="bi bi-play-circle-fill nav-ico"></i>Studia tutto</div>
+    <div class="sep"></div>
+    <div class="ns-hdr">
+      <span class="ns-lbl">I miei mazzi</span>
+      <button class="ns-add" onclick="openNewDeck()" title="Nuovo mazzo">+</button>
+    </div>
+    <div id="sb-decks"></div>
+    <div class="sep"></div>
+    <div class="nav-item" onclick="nav('manage')"><i class="bi bi-sliders nav-ico"></i>Gestisci mazzi</div>
+    <div class="nav-item" onclick="nav('browse')"><i class="bi bi-table nav-ico"></i>Sfoglia carte</div>
+    <div class="nav-item" onclick="nav('import')"><i class="bi bi-upload nav-ico"></i>Importa CSV</div>
+    <div class="nav-item" onclick="nav('stats')"><i class="bi bi-bar-chart-fill nav-ico"></i>Statistiche</div>
+  </div>
+  <div class="sb-footer">
+    <div class="backup-row">
+      <button class="btn btn-g btn-sm" style="flex:1;font-size:11px" onclick="exportBackup()"><i class="bi bi-download"></i> Backup JSON</button>
+      <label class="btn btn-g btn-sm" style="flex:1;font-size:11px;cursor:pointer"><i class="bi bi-upload"></i> Ripristina<input type="file" accept=".json" style="display:none" onchange="importBackup(this)"></label>
+    </div>
+    <div class="fs-row">
+      <div class="fs-chip"><div class="fs-n" id="ft-cards">0</div><div class="fs-l">Carte</div></div>
+      <div class="fs-chip"><div class="fs-n" id="ft-due" style="color:var(--gr)">0</div><div class="fs-l">Da ripassare</div></div>
+      <div class="fs-chip"><div class="fs-n" id="ft-streak" style="color:var(--ac)">0</div><div class="fs-l">Streak🔥</div></div>
+    </div>
+  </div>
+</aside>
+<div class="mob-overlay" id="mob-ov" onclick="closeMob()"></div>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <button class="hamburger" onclick="openMob()">☰</button>
+    <span class="tb-title" id="tb-title">Panoramica</span>
+    <div class="tb-right" id="tb-right"></div>
+  </div>
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div class="hero"><h1 id="dash-h1">Bentornato.</h1><p id="dash-sub">Seleziona un mazzo per iniziare.</p></div>
+      <div class="sec-title">I tuoi mazzi</div>
+      <div class="decks-grid" id="decks-grid"></div>
+    </div>
+
+    <!-- STUDIO -->
+    <div class="view" id="view-study">
+      <div class="study-wrap" id="study-wrap"></div>
+    </div>
+
+    <!-- GESTISCI MAZZI -->
+    <div class="view" id="view-manage">
+      <div class="hero"><h1>Gestisci mazzi</h1><p style="color:var(--tx2)">Crea, modifica, elimina mazzi e configurane le impostazioni.</p></div>
+      <div id="manage-body"></div>
+    </div>
+
+    <!-- AGGIUNGI / MODIFICA CARTA -->
+    <div class="view" id="view-add">
+      <div class="editor-wrap">
+        <h2 id="editor-h2">Aggiungi una carta</h2>
+        <div class="frow">
+          <div class="fg"><label class="fl">Mazzo</label><select class="fse" id="card-deck-sel"></select></div>
+          <div class="fg"><label class="fl">Tag <span class="opt">(opzionale)</span></label><input class="fi" id="card-tags" type="text" placeholder="es. algebra, formule"></div>
+        </div>
+        <div class="fg"><label class="fl">Domanda (fronte)</label><textarea class="fta" id="card-front" rows="3" placeholder="Puoi usare $formula$ per il LaTeX" oninput="updatePreview()"></textarea></div>
+        <div class="fg"><label class="fl">Risposta (retro)</label><textarea class="fta" id="card-back" rows="3" placeholder="Puoi usare $formula$ per il LaTeX" oninput="updatePreview()"></textarea></div>
+        <div class="card-prev">
+          <div class="prev-lbl">Anteprima</div>
+          <div class="prev-q" id="prev-q">La domanda apparirà qui</div>
+          <div class="prev-div"></div>
+          <div class="prev-a" id="prev-a">La risposta</div>
+        </div>
+        <div class="ed-actions">
+          <button class="btn btn-g" onclick="resetEditor()">Azzera</button>
+          <div class="spacer"></div>
+          <button class="btn btn-g" onclick="saveCard(true)">Salva e aggiungi un'altra</button>
+          <button class="btn btn-p" id="save-btn" onclick="saveCard(false)"><i class="bi bi-floppy"></i> Salva carta</button>
+        </div>
+        <input type="hidden" id="edit-card-id">
+      </div>
+    </div>
+
+    <!-- SFOGLIA -->
+    <div class="view" id="view-browse">
+      <div class="browse-tb">
+        <input class="search-inp" id="browse-search" type="text" placeholder="Cerca domanda, risposta o tag…" oninput="renderBrowse()">
+        <div class="browse-tb-row2">
+          <select class="fse" id="browse-deck-f" onchange="renderBrowse()"><option value="">Tutti i mazzi</option></select>
+          <select class="fse" id="browse-status-f" onchange="renderBrowse()">
+            <option value="">Tutti gli stati</option>
+            <option value="new">Nuove</option>
+            <option value="learning">In studio</option>
+            <option value="relearning">Reapprendimento</option>
+            <option value="review">Ripasso</option>
+            <option value="mature">Mature</option>
+            <option value="suspended">Sospese</option>
+          </select>
+        </div>
+        <span class="browse-count" id="browse-count"></span>
+        <button class="btn btn-s btn-sm" onclick="exportCSV()"><i class="bi bi-download"></i> Esporta CSV</button>
+      </div>
+      <div class="tbl-wrap" id="browse-body"></div>
+    </div>
+
+    <!-- STATISTICHE -->
+    <div class="view" id="view-stats">
+      <div class="stats-tabs" id="stats-tabs"></div>
+      <div id="stats-body"></div>
+    </div>
+
+    <!-- IMPORTA CSV -->
+    <div class="view" id="view-import">
+      <div style="max-width:520px">
+        <div class="hero"><h1>Importa CSV</h1><p style="color:var(--tx2)">Formato: <code style="background:var(--bg3);padding:1px 6px;border-radius:4px;font-size:12px">domanda,risposta</code> — una riga per carta, senza intestazione.</p></div>
+        <div class="fg">
+          <label class="fl">Mazzo di destinazione</label>
+          <div class="flex gap-8 mb-8">
+            <select class="fse" id="import-deck-sel" style="flex:1"></select>
+            <button class="btn btn-g btn-sm" id="import-new-btn" onclick="openInlineNewDeck()"><i class="bi bi-plus-lg"></i> Nuovo mazzo</button>
+          </div>
+          <div class="inline-new" id="inline-new">
+            <div class="fg mb-8"><label class="fl">Nome nuovo mazzo</label><input class="fi" id="inline-name" type="text" placeholder="es. Economia"></div>
+            <div class="fg" style="margin-bottom:10px"><label class="fl">Colore</label><div class="color-swatches" id="inline-swatches"></div></div>
+            <div class="flex gap-8"><button class="btn btn-g btn-sm" onclick="cancelInlineDeck()">Annulla</button><button class="btn btn-p btn-sm" onclick="createInlineDeck()">Crea e seleziona</button></div>
+          </div>
+        </div>
+        <div class="import-zone" id="import-zone" onclick="document.getElementById('file-input').click()" ondragover="dragOver(event)" ondragleave="dragLeave()" ondrop="dropFile(event)">
+          <div class="import-zone-ico"><i class="bi bi-folder2-open"></i></div>
+          <p>Clicca qui o trascina il file CSV</p>
+          <small>.csv — separatore virgola</small>
+        </div>
+        <input type="file" id="file-input" accept=".csv,.txt" onchange="loadFile(this)">
+        <div id="import-preview" style="display:none;margin-top:16px">
+          <div class="sec-title"><span id="import-count">0</span> carte trovate</div>
+          <div id="import-list" style="background:var(--bg2);border:1px solid var(--bo);border-radius:var(--r2);max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+          <div class="flex gap-8">
+            <button class="btn btn-g" onclick="cancelImport()">Annulla</button>
+            <div class="spacer"></div>
+            <button class="btn btn-p" onclick="confirmImport()">Importa <span id="import-n"></span> carte</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<!-- MODALI -->
+<div class="overlay" id="ov-deck">
+  <div class="modal">
+    <h3 id="modal-deck-h">Nuovo mazzo</h3>
+    <div class="fg"><label class="fl">Nome del mazzo</label><input class="fi" id="deck-name-inp" type="text" placeholder="es. Microeconomia, Storia…" onkeydown="if(event.key==='Enter')saveDeck()"></div>
+    <div class="fg"><label class="fl">Colore</label><div class="color-swatches" id="color-swatches"></div></div>
+    <div class="modal-actions"><button class="btn btn-g" onclick="closeOv('deck')">Annulla</button><button class="btn btn-p" onclick="saveDeck()">Salva mazzo</button></div>
+    <input type="hidden" id="edit-deck-id">
+  </div>
+</div>
+
+<div class="overlay" id="ov-settings">
+  <div class="modal wide">
+    <h3>Impostazioni — <span id="s-deck-name"></span></h3>
+    <div class="set-sec">
+      <div class="set-sec-title">Limiti giornalieri</div>
+      <div class="set-row"><div><div class="set-label">Nuove carte al giorno</div><div class="set-desc">Quante carte nuove mostrare ogni giorno</div></div><div class="set-ctrl"><input class="fn" type="number" id="s-new-limit" min="1" max="9999" value="20"></div></div>
+      <div class="set-row"><div><div class="set-label">Ripassi al giorno</div><div class="set-desc">Massimo ripassi giornalieri</div></div><div class="set-ctrl"><input class="fn" type="number" id="s-rev-limit" min="1" max="9999" value="60"></div></div>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">Passi di apprendimento</div>
+      <div class="set-row"><div><div class="set-label">Learning steps (carte nuove)</div><div class="set-desc">Minuti separati da spazio, es. "1 10 1440"</div></div><div class="set-ctrl"><input class="fi" type="text" id="s-learn-steps" value="1 10 1440" style="width:150px"></div></div>
+      <div class="set-row"><div><div class="set-label">Relearning steps (errori)</div><div class="set-desc">Passi per le carte mature sbagliate</div></div><div class="set-ctrl"><input class="fi" type="text" id="s-relearn-steps" value="10 1440" style="width:150px"></div></div>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">Algoritmo</div>
+      <div class="set-row"><div><div class="set-label">Intervallo massimo (giorni)</div></div><div class="set-ctrl"><input class="fn" type="number" id="s-max-iv" min="1" max="36500" value="36500"></div></div>
+      <div class="set-row"><div><div class="set-label">Soglia leech</div><div class="set-desc">Sospensione automatica dopo N errori</div></div><div class="set-ctrl"><input class="fn" type="number" id="s-leech" min="1" max="99" value="8"></div></div>
+      <div class="set-row"><div><div class="set-label">Nuovo intervallo (%)</div><div class="set-desc">Percentuale dell'intervallo mantenuta dopo un errore (0 = azzera)</div></div><div class="set-ctrl"><input class="fn" type="number" id="s-new-interval" min="0" max="100" value="0"></div></div>
+      <div class="set-row"><div><div class="set-label">Ordine nuove carte</div></div><div class="set-ctrl"><select class="fse" id="s-order" style="width:150px"><option value="due">Per data aggiunta</option><option value="random">Casuale</option></select></div></div>
+    </div>
+    <div class="modal-actions"><button class="btn btn-g" onclick="closeOv('settings')">Annulla</button><button class="btn btn-p" onclick="saveSettings()">Salva impostazioni</button></div>
+    <input type="hidden" id="s-deck-id">
+  </div>
+</div>
+
+<div class="overlay" id="ov-del-card">
+  <div class="modal"><h3>Eliminare la carta?</h3><p style="color:var(--tx2);font-size:14px;line-height:1.6">Verrà rimossa definitivamente.</p>
+  <div class="modal-actions"><button class="btn btn-g" onclick="closeOv('del-card')">Annulla</button><button class="btn btn-d" onclick="doDelCard()">Sì, elimina</button></div></div>
+</div>
+
+<div class="overlay" id="ov-del-deck">
+  <div class="modal"><h3>Eliminare il mazzo?</h3><p style="color:var(--tx2);font-size:14px;line-height:1.6">Verranno eliminate anche tutte le carte. Operazione irreversibile.</p>
+  <div class="modal-actions"><button class="btn btn-g" onclick="closeOv('del-deck')">Annulla</button><button class="btn btn-d" onclick="doDelDeck()">Sì, elimina tutto</button></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/script.js"></script>
+</body>
+</html>
