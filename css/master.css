@@ -406,3 +406,13 @@ table.ct tr:last-child td{border-bottom:none}
   .fs-chip{padding:7px 2px}
   .fs-n{font-size:14px}
 }
+
+/* IMPOSTAZIONI GENERALI */
+.theme-swatches{display:flex;gap:10px;flex-wrap:wrap;padding:10px 0}
+.tswatch{width:36px;height:36px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .13s,border-color .13s,box-shadow .13s;flex-shrink:0}
+.tswatch:hover{transform:scale(1.12)}
+.tswatch.active{border-color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.18)}
+.fb-status{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:var(--r);font-size:13px;margin-bottom:12px;border:1px solid transparent}
+.fb-status.ok{background:var(--grdim);border-color:rgba(74,156,110,.25);color:var(--gr)}
+.fb-status.err{background:var(--redim);border-color:rgba(184,92,92,.25);color:var(--re)}
+.fb-status.loading{background:var(--bg3);border-color:var(--bo);color:var(--tx2)}
