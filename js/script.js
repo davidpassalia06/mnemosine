@@ -362,7 +362,7 @@ function renderStudyCard(){
     <div class="rating-grid" id="rg">
       <button class="rate-btn again" id="rb-again" onclick="rate('again')">Di nuovo<div class="iv">${nextIv(card,'again')}</div></button>
       <button class="rate-btn hard"  id="rb-hard"  onclick="rate('hard')">Difficile<div class="iv">${nextIv(card,'hard')}</div></button>
-      <button class="rate-btn good"  id="rb-good"  onclick="rate('good')">Bene<div class="iv">${nextIv(card,'good')}</div></button>
+      <button class="rate-btn good"  id="rb-good"  onclick="rate('good')">Medio<div class="iv">${nextIv(card,'good')}</div></button>
       <button class="rate-btn easy"  id="rb-easy"  onclick="rate('easy')">Facile<div class="iv">${nextIv(card,'easy')}</div></button>
     </div>
     <div class="kbd-hint"><span class="kbd">1</span> Di nuovo &nbsp;<span class="kbd">2</span> Difficile &nbsp;<span class="kbd">3</span> Bene &nbsp;<span class="kbd">4</span> Facile &nbsp;<span class="kbd">B</span> Rimanda &nbsp;<span class="kbd">Z</span> Annulla</div>`;
