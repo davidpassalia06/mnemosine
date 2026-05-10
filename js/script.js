@@ -209,7 +209,7 @@ function nav(name,opts={}){
     add:()=>{buildSels();opts.editId?loadCardEdit(opts.editId):resetEditor();},
     browse:renderBrowse,
     stats:renderStats,
-    import:()=>{buildSels();buildInlineSwatches();},
+    import:()=>{buildSels();buildInlineSwatches();cancelInlineDeck();},
   })[name]?.();
   updateSidebar();
 }
@@ -424,6 +424,7 @@ function rate(rating){
   }
 
   save();
+  updateSidebar();
   // Piccolo delay per far vedere il flash prima di cambiare carta
   setTimeout(renderStudyCard,120);
 }
