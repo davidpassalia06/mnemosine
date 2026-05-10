@@ -79,7 +79,7 @@ function sm2(card,rating){
     }else if(rating==='easy'){
       interval=Math.min(Math.max(4,Math.round(ls[ls.length-1]/1440*easeFactor)),c.maxInterval);
       repetitions=1;ns=interval>=21?'mature':'review';due=Date.now()+interval*DAY;stepIdx=ls.length;
-    }else if(rating==='good'){
+    }else if(rating==='medium'){
       stepIdx=Math.min(stepIdx+1,ls.length);
       if(stepIdx>=ls.length){interval=Math.min(Math.max(1,Math.round(ls[ls.length-1]/1440)),c.maxInterval);repetitions=1;ns=interval>=21?'mature':'review';due=Date.now()+interval*DAY;}
       else{ns='learning';due=Date.now()+ls[stepIdx]*MIN;}
@@ -91,7 +91,7 @@ function sm2(card,rating){
 
   }else if(status==='relearning'){
     if(rating==='again'){stepIdx=0;ns='relearning';due=Date.now()+rs[0]*MIN;}  // no lapses++ qui, già contato quando è uscita da review
-    else if(rating==='good'||rating==='easy'){
+    else if(rating==='medium'||rating==='easy'){
       stepIdx=Math.min(stepIdx+1,rs.length);
       if(stepIdx>=rs.length){interval=Math.min(Math.max(1,Math.round(interval*0.5)),c.maxInterval);repetitions++;ns=interval>=21?'mature':'review';due=Date.now()+interval*DAY;}
       else{ns='relearning';due=Date.now()+rs[stepIdx]*MIN;}
@@ -110,7 +110,7 @@ function sm2(card,rating){
     }else{
       // Intervallo: hard x1.2, good x ease, easy x ease x1.3
       if(rating==='hard'){interval=Math.round(interval*1.2);}
-      else if(rating==='good'){interval=Math.round(interval*easeFactor);}
+      else if(rating==='medium'){interval=Math.round(interval*easeFactor);}
       else{interval=Math.round(interval*easeFactor*1.3);}
       // EaseFactor secondo Anki: hard -0.15, good invariato, easy +0.15
       if(rating==='hard'){easeFactor=Math.max(1.3,Math.round((easeFactor-0.15)*1000)/1000);}
@@ -135,7 +135,7 @@ function nextIv(card,rating){
   if(status==='new'||status==='learning'){
     if(rating==='again')return fmt(ls[0]);
     if(rating==='easy')return Math.min(Math.max(4,Math.round(ls[ls.length-1]/1440*easeFactor)),c.maxInterval)+' gg';
-    if(rating==='good'){const ni=stepIdx+1;if(ni>=ls.length)return Math.max(1,Math.round(ls[ls.length-1]/1440))+' gg';return fmt(ls[ni]);}
+    if(rating==='medium'){const ni=stepIdx+1;if(ni>=ls.length)return Math.max(1,Math.round(ls[ls.length-1]/1440))+' gg';return fmt(ls[ni]);}
     // Hard: media tra step corrente e precedente
     const hardMin=stepIdx===0?ls[0]:(ls[stepIdx-1]+ls[stepIdx])/2;
     return fmt(hardMin);
@@ -147,7 +147,7 @@ function nextIv(card,rating){
   }
   if(rating==='again')return fmt(rs[0]);
   if(rating==='hard')return Math.min(Math.max(Math.round(interval*1.2),4),c.maxInterval)+' gg';
-  if(rating==='good')return Math.min(Math.max(Math.round(interval*easeFactor),4),c.maxInterval)+' gg';
+  if(rating==='medium')return Math.min(Math.max(Math.round(interval*easeFactor),4),c.maxInterval)+' gg';
   return Math.min(Math.max(Math.round(interval*easeFactor*1.3),4),c.maxInterval)+' gg';
 }
 
@@ -362,7 +362,7 @@ function renderStudyCard(){
     <div class="rating-grid" id="rg">
       <button class="rate-btn again" id="rb-again" onclick="rate('again')">Di nuovo<div class="iv">${nextIv(card,'again')}</div></button>
       <button class="rate-btn hard"  id="rb-hard"  onclick="rate('hard')">Difficile<div class="iv">${nextIv(card,'hard')}</div></button>
-      <button class="rate-btn good"  id="rb-good"  onclick="rate('good')">Medio<div class="iv">${nextIv(card,'good')}</div></button>
+      <button class="rate-btn good"  id="rb-good"  onclick="rate('medium')">Medio<div class="iv">${nextIv(card,'medium')}</div></button>
       <button class="rate-btn easy"  id="rb-easy"  onclick="rate('easy')">Facile<div class="iv">${nextIv(card,'easy')}</div></button>
     </div>
     <div class="kbd-hint"><span class="kbd">1</span> Di nuovo &nbsp;<span class="kbd">2</span> Difficile &nbsp;<span class="kbd">3</span> Bene &nbsp;<span class="kbd">4</span> Facile &nbsp;<span class="kbd">B</span> Rimanda &nbsp;<span class="kbd">Z</span> Annulla</div>`;
@@ -864,7 +864,7 @@ document.addEventListener('keydown',e=>{
   if(window.matchMedia('(hover:none)').matches)return;
   if(view==='study'){
     if(e.key===' '||e.key==='Enter'){e.preventDefault();reveal();}
-    if(e.key==='1')rate('again');if(e.key==='2')rate('hard');if(e.key==='3')rate('good');if(e.key==='4')rate('easy');
+    if(e.key==='1')rate('again');if(e.key==='2')rate('hard');if(e.key==='3')rate('medium');if(e.key==='4')rate('easy');
     if(e.key==='b'||e.key==='B')buryCurrent();
     if(e.key==='z'||e.key==='Z')undoLast();
   }
