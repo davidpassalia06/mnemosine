@@ -1,10 +1,24 @@
 // ═══════════════ COSTANTI ═══════════════
 const SK='mnemosyne_v5',DAY=864e5,MIN=6e4;
+const SETTINGS_KEY='mnemosyne_settings';
 const COLORS=['#c8a96e','#4a9c6e','#5c8ab8','#b85c5c','#9c6eb8','#c87a3e','#5cb8b0','#7eb85c','#b8a05c'];
+
+// Palette temi: [accent, accent2, adim]
+const THEMES=[
+  {name:'Ambra',    ac:'#c8a96e',ac2:'#e8c99a',adim:'rgba(200,169,110,0.13)'},
+  {name:'Smeraldo', ac:'#4a9c6e',ac2:'#6ec995',adim:'rgba(74,156,110,0.13)'},
+  {name:'Oceano',   ac:'#5c8ab8',ac2:'#80aed4',adim:'rgba(92,138,184,0.13)'},
+  {name:'Rosa',     ac:'#c46e9a',ac2:'#e89fc2',adim:'rgba(196,110,154,0.13)'},
+  {name:'Viola',    ac:'#9c6eb8',ac2:'#c499d4',adim:'rgba(156,110,184,0.13)'},
+  {name:'Ardesia',  ac:'#8a9c6e',ac2:'#b0c490',adim:'rgba(138,156,110,0.13)'},
+  {name:'Argento',  ac:'#909090',ac2:'#c0c0c0',adim:'rgba(144,144,144,0.13)'},
+];
 const DEF={newLimit:20,revLimit:60,learnSteps:[1,10,1440],relearnSteps:[10,1440],maxInterval:36500,leechThreshold:8,newOrder:'due',newInterval:0};
 
 // ═══════════════ STATE ═══════════════
 let S=loadState(),view='dashboard';
+let appSettings=loadAppSettings();
+applyTheme(appSettings.themeIdx||0);
 let studyQ=[],againQ=[],studyDid=null;
 let sess={again:0,hard:0,good:0,easy:0,reviewed:0};
 let delCardId=null,delDeckId=null;
@@ -188,7 +202,7 @@ function updateSidebar(){
 }
 
 // ═══════════════ NAVIGATION ═══════════════
-const TITLES={dashboard:'Panoramica',studyall:'Studia tutto',study:'Studio',manage:'Gestisci mazzi',add:'Aggiungi carta',browse:'Sfoglia carte',stats:'Statistiche',import:'Importa CSV'};
+const TITLES={dashboard:'Panoramica',studyall:'Studia tutto',study:'Studio',manage:'Gestisci mazzi',add:'Aggiungi carta',browse:'Sfoglia carte',stats:'Statistiche',import:'Importa CSV',settings:'Impostazioni'};
 function nav(name,opts={}){
   closeMob();
   const vid='view-'+(name==='studyall'?'study':name);
@@ -210,6 +224,7 @@ function nav(name,opts={}){
     browse:renderBrowse,
     stats:renderStats,
     import:()=>{buildSels();buildInlineSwatches();cancelInlineDeck();},
+    settings:renderSettingsView,
   })[name]?.();
   updateSidebar();
 }
@@ -871,6 +886,175 @@ document.addEventListener('keydown',e=>{
   }
   if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));
 });
+
+// ═══════════════ APP SETTINGS ═══════════════
+function loadAppSettings(){
+  try{const s=JSON.parse(localStorage.getItem(SETTINGS_KEY));if(s)return s;}catch(e){}
+  return{themeIdx:0,firebase:null};
+}
+function saveAppSettings(){localStorage.setItem(SETTINGS_KEY,JSON.stringify(appSettings));}
+
+// ═══════════════ TEMA ═══════════════
+function applyTheme(idx){
+  const t=THEMES[idx]||THEMES[0];
+  const r=document.documentElement.style;
+  r.setProperty('--ac',t.ac);
+  r.setProperty('--ac2',t.ac2);
+  r.setProperty('--adim',t.adim);
+  // Aggiorna anche le celle heatmap se già presenti
+  document.querySelectorAll('.hm-cell.l1,.hm-cell.l2,.hm-cell.l3,.hm-cell.l4').forEach(el=>{
+    const rgb=hexToRgb(t.ac);
+    if(!rgb)return;
+    const lv=el.classList.contains('l1')?.2:el.classList.contains('l2')?.42:el.classList.contains('l3')?.68:.9;
+    el.style.background=`rgba(${rgb},${lv})`;
+  });
+}
+function hexToRgb(hex){const r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);return r?`${parseInt(r[1],16)},${parseInt(r[2],16)},${parseInt(r[3],16)}`:null;}
+
+function renderSettingsView(){
+  buildThemeSwatches();
+  fbRestoreFields();
+  fbUpdateUI();
+}
+function buildThemeSwatches(){
+  const el=document.getElementById('theme-swatches');if(!el)return;
+  el.innerHTML=THEMES.map((t,i)=>`<div class="tswatch${i===appSettings.themeIdx?' active':''}" style="background:${t.ac}" title="${t.name}" onclick="pickTheme(${i})"></div>`).join('');
+}
+function pickTheme(idx){
+  appSettings.themeIdx=idx;
+  saveAppSettings();
+  applyTheme(idx);
+  buildThemeSwatches();
+  toast(`Tema "${THEMES[idx].name}" applicato.`);
+}
+
+// ═══════════════ FIREBASE ═══════════════
+let fbApp=null,fbDb=null;
+
+function fbRestoreFields(){
+  const cfg=appSettings.firebase||{};
+  ['apikey','authdomain','dburl','projectid'].forEach(k=>{
+    const el=document.getElementById('fb-'+k);if(el)el.value=cfg[k]||'';
+  });
+  // Se già connesso, riconnetti silenziosamente
+  if(cfg.apikey&&cfg.dburl)fbInitApp(cfg,true);
+}
+
+function fbReadFields(){
+  return{
+    apikey:document.getElementById('fb-apikey')?.value.trim()||'',
+    authdomain:document.getElementById('fb-authdomain')?.value.trim()||'',
+    dburl:document.getElementById('fb-dburl')?.value.trim()||'',
+    projectid:document.getElementById('fb-projectid')?.value.trim()||'',
+  };
+}
+
+function fbInitApp(cfg,silent=false){
+  try{
+    if(fbApp){try{firebase.app('[DEFAULT]').delete();}catch(e){}}
+    fbApp=firebase.initializeApp({
+      apiKey:cfg.apikey,
+      authDomain:cfg.authdomain,
+      databaseURL:cfg.dburl,
+      projectId:cfg.projectid,
+    });
+    fbDb=firebase.database(fbApp);
+    // Test connessione
+    fbDb.ref('.info/connected').once('value').then(snap=>{
+      fbApp._connected=true;
+      if(!silent)toast('Firebase connesso!');
+      fbUpdateUI(true);
+    }).catch(err=>{
+      fbApp._connected=false;
+      fbSetStatus('err',`Connessione fallita: ${err.message}`);
+      fbUpdateUI(false);
+    });
+    return true;
+  }catch(err){
+    fbSetStatus('err',`Errore inizializzazione: ${err.message}`);
+    fbUpdateUI(false);
+    return false;
+  }
+}
+
+function fbConnect(){
+  const cfg=fbReadFields();
+  if(!cfg.apikey||!cfg.dburl){toast('Inserisci almeno API Key e Database URL.');return;}
+  fbSetStatus('loading','Connessione in corso…');
+  appSettings.firebase=cfg;
+  saveAppSettings();
+  fbInitApp(cfg);
+}
+
+function fbDisconnect(){
+  if(fbApp){try{fbApp.delete();}catch(e){}}
+  fbApp=null;fbDb=null;
+  appSettings.firebase=null;
+  saveAppSettings();
+  ['apikey','authdomain','dburl','projectid'].forEach(k=>{const el=document.getElementById('fb-'+k);if(el)el.value='';});
+  fbSetStatus(null);
+  fbUpdateUI(false);
+  toast('Firebase disconnesso.');
+}
+
+function fbUpdateUI(connected){
+  const disc=document.getElementById('fb-disconnect-btn');
+  const up=document.getElementById('fb-upload-btn');
+  const down=document.getElementById('fb-download-btn');
+  const act=document.getElementById('fb-actions');
+  const isConn=connected||(fbApp&&fbApp._connected);
+  if(disc)disc.style.display=isConn?'':'none';
+  if(act)act.style.display=isConn?'flex':'none';
+  if(up){up.disabled=!isConn;}
+  if(down){down.disabled=!isConn;}
+  if(isConn&&!document.getElementById('fb-status-bar')?.querySelector('.fb-status.ok')){
+    fbSetStatus('ok','Connesso al database Firebase.');
+  }
+}
+
+function fbSetStatus(type,msg){
+  const bar=document.getElementById('fb-status-bar');if(!bar)return;
+  if(!type){bar.style.display='none';bar.innerHTML='';return;}
+  const ico=type==='ok'?'bi-cloud-check-fill':type==='loading'?'bi-hourglass-split':'bi-exclamation-triangle-fill';
+  bar.style.display='block';
+  bar.innerHTML=`<div class="fb-status ${type}"><i class="bi ${ico}"></i> ${msg}</div>`;
+}
+
+async function fbUpload(){
+  if(!fbDb){toast('Firebase non connesso.');return;}
+  const up=document.getElementById('fb-upload-btn');
+  if(up){up.disabled=true;up.innerHTML='<i class="bi bi-hourglass-split"></i> Caricamento…';}
+  try{
+    const payload={...S,_uploadedAt:new Date().toISOString(),_version:'mnemosyne_v5'};
+    await fbDb.ref('mnemosyne/backup').set(payload);
+    toast('Backup caricato su Firebase!');
+    fbSetStatus('ok',`Backup caricato — ${new Date().toLocaleTimeString('it-IT')}`);
+  }catch(err){
+    toast('Errore upload: '+err.message);
+    fbSetStatus('err','Errore durante il caricamento: '+err.message);
+  }finally{
+    if(up){up.disabled=false;up.innerHTML='<i class="bi bi-cloud-upload"></i> Carica backup';}
+  }
+}
+
+async function fbDownload(){
+  if(!fbDb){toast('Firebase non connesso.');return;}
+  const down=document.getElementById('fb-download-btn');
+  if(down){down.disabled=true;down.innerHTML='<i class="bi bi-hourglass-split"></i> Scaricamento…';}
+  try{
+    const snap=await fbDb.ref('mnemosyne/backup').once('value');
+    const data=snap.val();
+    if(!data||!data.decks||!data.cards){toast('Nessun backup trovato nel database.');return;}
+    delete data._uploadedAt;delete data._version;
+    S=data;save();nav('dashboard');
+    toast('Backup scaricato e ripristinato!');
+  }catch(err){
+    toast('Errore download: '+err.message);
+    fbSetStatus('err','Errore durante il download: '+err.message);
+  }finally{
+    if(down){down.disabled=false;down.innerHTML='<i class="bi bi-cloud-download"></i> Scarica backup';}
+  }
+}
 
 // ═══════════════ INIT ═══════════════
 nav('dashboard');
