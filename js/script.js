@@ -208,6 +208,11 @@ function nav(name,opts={}){
   const vid='view-'+(name==='studyall'?'study':name);
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(vid)?.classList.add('active');
+  // Aggiorna nav-item attivo nella sidebar
+  document.querySelectorAll('.nav-item').forEach(el=>{
+    const oc=el.getAttribute('onclick')||'';
+    el.classList.toggle('active',oc.includes(`'${name}'`));
+  });
   view=name;
   document.getElementById('tb-title').textContent=TITLES[name]||name;
   const r=document.getElementById('tb-right');
@@ -505,6 +510,9 @@ function renderDone(){
 
 function updateStreak(){
   const today=new Date().toDateString(),yest=new Date(Date.now()-DAY).toDateString();
+  // Controlla se almeno una carta è stata completata oggi in qualsiasi mazzo
+  const doneSomething=Object.values(S.todayCounts[todayKey()]||{}).some(tc=>(tc.newDone||0)+(tc.revDone||0)>0);
+  if(!doneSomething)return;
   if(S.lastStudyDate!==today){S.streak=S.lastStudyDate===yest?(S.streak||0)+1:1;S.lastStudyDate=today;}
 }
 
@@ -730,7 +738,7 @@ function renderStatsBody(){
       <div class="stat-card"><div class="sbig">${mature}</div><div class="slabel">Mature</div></div>
       <div class="stat-card"><div class="sbig">${revs.length}</div><div class="slabel">Ripassi totali</div></div>
       <div class="stat-card"><div class="sbig">${todayRevs}</div><div class="slabel">Oggi</div></div>
-      <div class="stat-card"><div class="sbig">${S.streak||0}🔥</div><div class="slabel">Streak</div></div>
+      <div class="stat-card"><div class="sbig">${S.streak||0}</div><div class="slabel">Streak</div></div>
       <div class="stat-card"><div class="sbig">${susp}</div><div class="slabel">Sospese</div></div>
       <div class="stat-card"><div class="sbig">${leeches}</div><div class="slabel">Leech</div></div>
       <div class="stat-card"><div class="sbig">${revs.length&&S.streak?Math.round(revs.length/Math.max(S.streak,1)):0}</div><div class="slabel">Rip./giorno</div></div>
