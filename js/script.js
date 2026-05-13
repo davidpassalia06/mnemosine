@@ -624,9 +624,12 @@ function setBrowseSort(col){
   renderBrowse();
 }
 function renderBrowse(){
+  const bdf=document.getElementById('browse-deck-f');
+  const savedDeck=bdf?.value||'';
   buildSels();
+  if(bdf&&savedDeck)bdf.value=savedDeck;
   const search=(document.getElementById('browse-search')?.value||'').toLowerCase();
-  const df=document.getElementById('browse-deck-f')?.value||'';
+  const df=bdf?.value||'';
   const sf=document.getElementById('browse-status-f')?.value||'';
   let cards=S.cards;
   if(df)cards=cards.filter(c=>c.deckId===df);
